@@ -13,9 +13,6 @@ const sentryRelease =
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
-  experimental: {
-    serverActions: true,
-  },
   transpilePackages: ["@bowser/prisma"],
   webpack: (config, { isServer }) => {
     if (isServer) {

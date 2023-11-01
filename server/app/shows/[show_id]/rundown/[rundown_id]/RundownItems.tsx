@@ -33,7 +33,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  experimental_useOptimistic as useOptimistic,
+  useOptimistic,
   useRef,
   useTransition,
 } from "react";

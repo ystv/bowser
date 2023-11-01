@@ -19,13 +19,13 @@ export async function addItem(
   if (!data.success) {
     return zodErrorResponse(data.error);
   }
-  await db.$transaction(async ($db) => {
+  const res = await db.$transaction(async ($db) => {
     const highestOrder = await $db.rundownItem.aggregate({
       _max: { order: true },
       where: { rundownId: data.data.rundownID },
     });
     const newOrder = (highestOrder._max.order ?? -1) + 1;
-    await $db.rundownItem.create({
+    const res = await $db.rundownItem.create({
       data: {
         name: data.data.name,
         type: data.data.type,
@@ -35,6 +35,9 @@ export async function addItem(
         rundown: {
           connect: { id: data.data.rundownID },
         },
+      },
+      include: {
+        rundown: true,
       },
     });
     await $db.rundown.update({
@@ -51,8 +54,9 @@ export async function addItem(
         },
       },
     });
+    return res;
   });
-  revalidatePath(`/shows/[show_id]/rundown/[rundown_id]`);
+  revalidatePath(`/shows/${res.rundown.showId}/rundown/${res.rundownId}`);
   return { ok: true };
 }
 
@@ -63,7 +67,7 @@ export async function editItem(
   if (!data.success) {
     return zodErrorResponse(data.error);
   }
-  await db.rundownItem.update({
+  const res = await db.rundownItem.update({
     where: {
       id: data.data.itemID,
     },
@@ -84,13 +88,16 @@ export async function editItem(
         },
       },
     },
+    include: {
+      rundown: true,
+    },
   });
-  revalidatePath(`/shows/[show_id]/rundown/[rundown_id]`);
+  revalidatePath(`/shows/${res.rundown.showId}/rundown/${res.rundown.id}`);
   return { ok: true };
 }
 
 export async function deleteItem(rundownID: number, itemID: number) {
-  await db.$transaction(async ($db) => {
+  const res = await db.$transaction(async ($db) => {
     const oldItem = await $db.rundownItem.delete({
       where: {
         id: itemID,
@@ -112,7 +119,7 @@ export async function deleteItem(rundownID: number, itemID: number) {
         },
       },
     });
-    await $db.rundown.update({
+    const res = await $db.rundown.update({
       where: {
         id: rundownID,
       },
@@ -127,8 +134,9 @@ export async function deleteItem(rundownID: number, itemID: number) {
       },
     });
     await ensureContiguousDEV(rundownID, $db);
+    return res;
   });
-  revalidatePath(`/shows/[show_id]/rundown/[rundown_id]`);
+  revalidatePath(`/shows/${res.showId}/rundown/${res.id}`);
 }
 
 export async function reorder(

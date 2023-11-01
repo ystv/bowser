@@ -13,7 +13,7 @@ import {
 } from "@hello-pangea/dnd";
 import Spinner from "@/app/_assets/spinner.svg";
 import React, {
-  experimental_useOptimistic as useOptimistic,
+  useOptimistic,
   forwardRef,
   useCallback,
   useMemo,

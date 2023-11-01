@@ -77,13 +77,13 @@ export async function processAssetUpload(
   });
 
   await dispatchJobForJobrunner(res.loadJobs[0].base_job_id);
-  revalidatePath("/shows/[show_id]/rundown/[rundown_id]");
+  revalidatePath(`/shows/${rundown.showId}/rundown/${rundown.id}`);
   return { ok: true };
 }
 
 export async function removeAsset(assetID: number) {
-  await db.$transaction(async ($db) => {
-    await $db.asset.update({
+  const res = await db.$transaction(async ($db) => {
+    const res = await $db.asset.update({
       where: {
         id: assetID,
       },
@@ -100,13 +100,17 @@ export async function removeAsset(assetID: number) {
           },
         },
       },
+      include: {
+        rundown: true,
+      },
     });
     await $db.asset.delete({
       where: {
         id: assetID,
       },
     });
+    return res;
   });
-  revalidatePath("/shows/[show_id]/rundown/[rundown_id]");
+  revalidatePath(`/shows/${res.rundown.showId}/rundown/${res.rundown.id}`);
   return { ok: true };
 }
