@@ -69,7 +69,7 @@ export const appRouter = r({
     logger.debug(
       `getSelectedShow called, current value is ${inspect(selectedShow.value)}`,
     );
-    return selectedShow.value;
+    return selectedShow.value ?? null;
   }),
   setSelectedShow: proc
     .input(z.object({ id: z.number() }))
