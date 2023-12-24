@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { CompleteShowType } from "./types";
+import { CompleteShowType, Integration, IntegrationState } from "./types";
 
 /*
  * This file defines the events that can be sent from the main process to the renderer process.
@@ -9,6 +9,7 @@ import { CompleteShowType } from "./types";
 
 export const Events = {
   selectedShowChange(newShow: CompleteShowType | null) {},
+  integrationsStateChange(newState: Record<Integration, IntegrationState>) {},
   assetsSettingsChange() {},
   devToolsSettingsChange() {},
   downloadStatusChange() {},

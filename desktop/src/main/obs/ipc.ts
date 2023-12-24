@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { proc, r } from "../base/ipcRouter";
-import { createOBSConnection, obsConnection } from "./obs";
 import { addOrReplaceMediaAsScene, findContinuityScenes } from "./obsHelpers";
 import { getLogger } from "loglevel";
 import { serverAPI } from "../base/serverApiClient";
@@ -8,6 +7,7 @@ import invariant from "../../common/invariant";
 import { selectedShow } from "../base/selectedShow";
 import { getDevToolsConfig, getLocalMediaSettings } from "../base/settings";
 import { TRPCError } from "@trpc/server";
+import { OBSIntegration } from "./obs";
 
 const logger = getLogger("obs/ipc");
 
@@ -24,11 +24,11 @@ export const obsRouter = r({
     )
     .query(async () => {
       // TODO[BOW-136]: don't use the connection for this
-      if (obsConnection === null) {
+      if (OBSIntegration.maybeInstance === null) {
         return { connected: false };
       }
       try {
-        const version = await obsConnection.ping();
+        const version = await OBSIntegration.instance.ping();
         return {
           connected: true,
           version: version.obsVersion,
@@ -49,7 +49,8 @@ export const obsRouter = r({
       }),
     )
     .mutation(async ({ input }) => {
-      await createOBSConnection(input.host, input.password, input.port);
+      await OBSIntegration.close();
+      await OBSIntegration.start(input);
     }),
   addMediaAsScene: proc
     .input(
@@ -137,8 +138,7 @@ export const obsRouter = r({
             message: "Dev tools not enabled",
           });
         }
-        invariant(obsConnection, "no OBS connection");
-        return await obsConnection.callArbitraryDoNotUseOrYouWillBeFired(
+        return await OBSIntegration.instance.callArbitraryDoNotUseOrYouWillBeFired(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           input.req as any,
           input.params,

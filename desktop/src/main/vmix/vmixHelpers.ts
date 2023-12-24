@@ -1,28 +1,26 @@
 import invariant from "../../common/invariant";
-import { getVMixConnection } from "./vmix";
 import { InputType, ListInput } from "./vmixTypes";
 import type { Asset, Media } from "@bowser/prisma/client";
 import { getAssetsSettings, getLocalMediaSettings } from "../base/settings";
 import { VMIX_NAMES } from "../../common/constants";
+import { VMixIntegration } from "./vmix";
 
 export async function reconcileList(listName: string, elements: string[]) {
-  const conn = getVMixConnection();
-  invariant(conn, "VMix connection not initialized");
-  const state = await conn.getFullState();
+  const state = await VMixIntegration.instance.getFullState();
   const existingInput = state.inputs.find((x) => x.shortTitle === listName);
   let key;
   if (existingInput) {
     key = existingInput.key;
   } else {
-    key = await conn.addInput("VideoList", "");
-    await conn.renameInput(key, listName);
+    key = await VMixIntegration.instance.addInput("VideoList", "");
+    await VMixIntegration.instance.renameInput(key, listName);
   }
   // TODO: Can we do this without removing and adding everything?
   //  Shortcuts unfortunately don't let us reorder, only add and remove.
-  await conn.clearList(key);
+  await VMixIntegration.instance.clearList(key);
   // Not done in a Promise.all() to ensure they're done in order
   for (const el of elements) {
-    await conn.addInputToList(key, el);
+    await VMixIntegration.instance.addInputToList(key, el);
   }
 }
 
@@ -52,9 +50,7 @@ export function getInputTypeForAsset(
 export async function loadAssets(assets: (Asset & { media: Media | null })[]) {
   const localMedia = await getLocalMediaSettings();
   const settings = await getAssetsSettings();
-  const vmix = getVMixConnection();
-  invariant(vmix, "No vMix connection");
-  const state = await vmix.getFullState();
+  const state = await VMixIntegration.instance.getFullState();
 
   for (const asset of assets) {
     if (!asset.media || asset.media.state !== "Ready") {
@@ -73,7 +69,10 @@ export async function loadAssets(assets: (Asset & { media: Media | null })[]) {
     if (loadType === "direct") {
       const present = state.inputs.find((x) => x.title === asset.media!.name);
       if (!present) {
-        await vmix.addInput(getInputTypeForAsset(asset), local.path);
+        await VMixIntegration.instance.addInput(
+          getInputTypeForAsset(asset),
+          local.path,
+        );
       }
     } else if (loadType === "list") {
       let present;
@@ -83,8 +82,11 @@ export async function loadAssets(assets: (Asset & { media: Media | null })[]) {
       let listKey;
       if (!list) {
         present = false;
-        listKey = await vmix.addInput("VideoList", "");
-        await vmix.renameInput(listKey, VMIX_NAMES.ASSET_LIST[asset.type]);
+        listKey = await VMixIntegration.instance.addInput("VideoList", "");
+        await VMixIntegration.instance.renameInput(
+          listKey,
+          VMIX_NAMES.ASSET_LIST[asset.type],
+        );
       } else {
         listKey = list.key;
         present = (list as ListInput).items.some(
@@ -92,7 +94,7 @@ export async function loadAssets(assets: (Asset & { media: Media | null })[]) {
         );
       }
       if (!present) {
-        await vmix.addInputToList(listKey, local.path);
+        await VMixIntegration.instance.addInputToList(listKey, local.path);
       }
     } else {
       invariant(false, "Invalid load type " + loadType);

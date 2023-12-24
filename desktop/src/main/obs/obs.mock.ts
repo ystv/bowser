@@ -4,8 +4,8 @@ import {
   OBSVideoSettings,
   Scene,
   SceneItem,
-} from "../obs";
-import invariant from "../../../common/invariant";
+} from "./obs";
+import invariant from "../../common/invariant";
 
 export interface MockSource {
   sceneItemId: number;
@@ -124,5 +124,3 @@ export function castMediaSourceSettings(
 ): x is InputSettingsResult<MediaSourceSettings> {
   return x.inputKind === "ffmpeg_source";
 }
-
-export const obsConnection = new MockOBSConnection();

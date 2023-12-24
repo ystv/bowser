@@ -109,6 +109,9 @@ test("scrolling for a show with lots of rundown items", async ({
         "ontime",
         "vmix",
       ]);
+      __MOCK_SERVER_API__.mock("query", "integrations.status", {
+        obs: "enabled",
+      });
       __MOCK_SERVER_API__.mock("query", "shows.getVersion", { version: 1 });
       __MOCK_SERVER_API__.mock("query", "shows.get", {
         id: 1,

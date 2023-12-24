@@ -21,6 +21,15 @@ vi.mock("net", () => ({
     return sock;
   },
 }));
+vi.mock("../base/settings", () => ({
+  getVMixSettings: () =>
+    Promise.resolve({
+      host: "localhost",
+      port: 8099,
+    }),
+  saveVMixSettings: () => {},
+}));
+vi.mock("../ipcEventBus");
 
 const nextTick = () => new Promise((resolve) => process.nextTick(resolve));
 

@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { proc, r } from "../base/ipcRouter";
-import { createVMixConnection, getVMixConnection } from "./vmix";
 import { getLogger } from "../base/logging";
 import invariant from "../../common/invariant";
 import { serverAPI } from "../base/serverApiClient";
@@ -9,6 +8,7 @@ import { getLocalMediaSettings } from "../base/settings";
 import { TRPCError } from "@trpc/server";
 import { loadAssets, reconcileList } from "./vmixHelpers";
 import { VMIX_NAMES } from "../../common/constants";
+import { VMixIntegration } from "./vmix";
 
 const logger = getLogger("vmix/ipc");
 
@@ -24,17 +24,15 @@ export const vmixRouter = r({
       }),
     )
     .query(async () => {
-      // TODO[BOW-136]: don't use the connection for this
-      const conn = getVMixConnection();
-      if (conn === null) {
+      if (VMixIntegration.maybeInstance === null) {
         return { connected: false };
       }
-      const state = await conn.getFullState();
+      const state = await VMixIntegration.instance.getFullState();
       logger.debug("VMix state", state);
       return {
         connected: true,
-        host: conn.host,
-        port: conn.port,
+        host: VMixIntegration.instance.host,
+        port: VMixIntegration.instance.port,
         version: state.version,
         edition: state.edition,
       };
@@ -54,8 +52,8 @@ export const vmixRouter = r({
       }),
     )
     .mutation(async ({ input }) => {
-      const conn = await createVMixConnection(input.host, input.port);
-      const state = await conn.getFullState();
+      await VMixIntegration.start(input);
+      const state = await VMixIntegration.instance.getFullState();
       return {
         connected: true,
         version: state.version,
@@ -63,9 +61,7 @@ export const vmixRouter = r({
       };
     }),
   getCompleteState: proc.query(() => {
-    const conn = getVMixConnection();
-    invariant(conn, "No vMix connection");
-    return conn.getFullState();
+    return VMixIntegration.instance.getFullState();
   }),
   loadRundownVTs: proc
     .input(

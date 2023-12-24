@@ -6,16 +6,17 @@ import {
   beforeEach,
   afterEach,
   beforeAll,
+  afterAll,
 } from "vitest";
 import {
   addOrReplaceMediaAsScene,
   findContinuityScenes,
   MediaType,
 } from "./obsHelpers";
-import { MockOBSConnection } from "./__mocks__/obs";
 import { selectedShow } from "../base/selectedShow";
+import { MockOBSConnection } from "./obs.mock";
+import { OBSIntegration } from "./obs";
 
-vi.mock("./obs");
 vi.mock("../base/settings", () => ({
   getLocalMediaSettings: () => [
     {
@@ -23,9 +24,12 @@ vi.mock("../base/settings", () => ({
       path: "TEST_PATH",
     },
   ],
+  getOBSSettings: () => Promise.resolve({}),
+  saveOBSSettings: () => {},
 }));
+vi.mock("../ipcEventBus");
 
-beforeAll(() => {
+beforeAll(async () => {
   selectedShow.next({
     id: 1,
     name: "Test",
@@ -36,6 +40,13 @@ beforeAll(() => {
     ytBroadcastID: null,
     ytStreamID: null,
   });
+  process.env.__USE_MOCK_OBS = "true";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await OBSIntegration.start({} as any);
+});
+
+afterAll(() => {
+  delete process.env.__USE_MOCK_OBS;
 });
 
 describe("addOrReplaceMediaAsScene", () => {
@@ -60,8 +71,7 @@ describe("addOrReplaceMediaAsScene", () => {
   };
   let mobs: MockOBSConnection;
   beforeEach(async () => {
-    mobs = (await import("./obs"))
-      .obsConnection as unknown as MockOBSConnection;
+    mobs = OBSIntegration.instance as unknown as MockOBSConnection;
   });
   afterEach(() => {
     mobs._reset();
@@ -195,8 +205,7 @@ describe("addOrReplaceMediaAsScene", () => {
 describe("findContinuityScenes", () => {
   let mobs: MockOBSConnection;
   beforeEach(async () => {
-    mobs = (await import("./obs"))
-      .obsConnection as unknown as MockOBSConnection;
+    mobs = OBSIntegration.instance as unknown as MockOBSConnection;
   });
   afterEach(() => {
     mobs._reset();

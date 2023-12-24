@@ -23,11 +23,12 @@ import {
   SelectValue,
 } from "@bowser/components/select";
 import { LogLevelNames } from "loglevel";
+import { Integration } from "../../common/types";
 
 export function Settings() {
   const queryClient = useQueryClient();
   const [devToolsState] = ipc.devtools.getSettings.useSuspenseQuery();
-  const [integrations] = ipc.supportedIntegrations.useSuspenseQuery();
+  const [integrations] = ipc.integrations.status.useSuspenseQuery();
   const [availableDownloaders] =
     ipc.media.getAvailableDownloaders.useSuspenseQuery();
   const [selectedDownloader] =
@@ -38,7 +39,7 @@ export function Settings() {
   const doMainCrash = ipc.devtools.crash.useMutation();
   const doSetIntegrations = ipc.devtools.setEnabledIntegrations.useMutation({
     onSettled() {
-      queryClient.invalidateQueries(getQueryKey(ipc.supportedIntegrations));
+      queryClient.invalidateQueries(getQueryKey(ipc.integrations.status));
     },
   });
   const doSetDownloader = ipc.media.setSelectedDownloader.useMutation({
@@ -84,13 +85,13 @@ export function Settings() {
   return (
     <Tabs defaultValue="obs">
       <TabsList className="w-full">
-        {integrations.includes("obs") && (
+        {integrations.obs !== "unsupported" && (
           <TabsTrigger value="obs">OBS</TabsTrigger>
         )}
-        {integrations.includes("vmix") && (
+        {integrations.vmix !== "unsupported" && (
           <TabsTrigger value="vmix">vMix</TabsTrigger>
         )}
-        {integrations.includes("ontime") && (
+        {integrations.ontime !== "unsupported" && (
           <TabsTrigger value="ontime">Ontime</TabsTrigger>
         )}
         <TabsTrigger value="media">Media</TabsTrigger>
@@ -100,17 +101,17 @@ export function Settings() {
         )}
         <TabsTrigger value="about">About</TabsTrigger>
       </TabsList>
-      {integrations.includes("obs") && (
+      {integrations.obs !== "unsupported" && (
         <TabsContent value="obs">
           <OBSSettings />
         </TabsContent>
       )}
-      {integrations.includes("vmix") && (
+      {integrations.vmix !== "unsupported" && (
         <TabsContent value="vmix">
           <VMixConnection />
         </TabsContent>
       )}
-      {integrations.includes("ontime") && (
+      {integrations.ontime !== "unsupported" && (
         <TabsContent value="ontime">
           <OntimeSettings />
         </TabsContent>
@@ -173,14 +174,16 @@ export function Settings() {
         </div>
         {devToolsState.enabled && (
           <div className="flex flex-col items-start space-y-2">
-            <h3>Enabled integrations</h3>
-            {(["obs", "vmix", "ontime"] as const).map((int) => (
+            <h3>Forcibly supported integrations</h3>
+            {(["obs", "vmix", "ontime"] as Integration[]).map((int) => (
               <div>
                 <Switch
                   id={"enable-" + int}
-                  checked={integrations.includes(int)}
+                  checked={integrations[int] !== "unsupported"}
                   onCheckedChange={(v) => {
-                    const newIntegrations = [...integrations];
+                    const newIntegrations = Object.keys(integrations).filter(
+                      (x) => integrations[x as Integration] !== "unsupported",
+                    );
                     if (v) {
                       newIntegrations.push(int);
                     } else {

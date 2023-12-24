@@ -21,6 +21,8 @@ import * as qs from "qs";
 import { v4 as uuidV4 } from "uuid";
 import { getLogger } from "../base/logging";
 import { getMockVMix } from "./vMix.mock";
+import { IntegrationManager } from "../base/integrations";
+import { getVMixSettings, saveVMixSettings } from "../base/settings";
 
 const logger = getLogger("vmix");
 
@@ -244,6 +246,10 @@ export default class VMixConnection {
     return res;
   }
 
+  public async close() {
+    this.sock.end();
+  }
+
   private async send(command: VMixCommand, ...args: string[]) {
     const req: ReqQueueItem = {
       command,
@@ -371,47 +377,18 @@ export default class VMixConnection {
   }
 }
 
-export let conn: VMixConnection | null;
-
-export async function tryCreateVMixConnection(
-  host?: string,
-  port?: number,
-): Promise<VMixConnection | null> {
-  if (process.env.__USE_MOCK_VMIX) {
-    return getMockVMix();
-  }
-  if (!conn) {
-    try {
-      conn = await VMixConnection.connect(host, port);
-    } catch (e) {
-      logger.warn("Failed to connect to VMix", e);
-      conn = null;
+export const VMixIntegration = new IntegrationManager(
+  "vmix",
+  async (settings, notifyClosed) => {
+    if (process.env.__USE_MOCK_VMIX) {
+      return getMockVMix();
     }
-  }
-  return conn;
-}
-
-export async function createVMixConnection(
-  host?: string,
-  port?: number,
-): Promise<VMixConnection> {
-  if (process.env.__USE_MOCK_VMIX) {
-    return getMockVMix();
-  }
-  if (!conn) {
-    try {
-      conn = await VMixConnection.connect(host, port);
-    } catch (e) {
-      conn = null;
-      throw e;
-    }
-  }
-  return conn;
-}
-
-export function getVMixConnection(): VMixConnection | null {
-  if (process.env.__USE_MOCK_VMIX) {
-    return getMockVMix();
-  }
-  return conn;
-}
+    const vc = await VMixConnection.connect(settings.host, settings.port);
+    //FIXME
+    vc["sock"].on("close", notifyClosed);
+    vc["sock"].on("error", notifyClosed);
+    return vc;
+  },
+  getVMixSettings,
+  saveVMixSettings,
+);

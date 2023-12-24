@@ -4,16 +4,16 @@ import { createIPCHandler } from "electron-trpc/main";
 import { emitObservable, setSender } from "./ipcEventBus";
 import { appRouter } from "./ipcApi";
 import { tryCreateAPIClient } from "./base/serverApiClient";
-import { tryCreateOBSConnection } from "./obs/obs";
 import { validateLocalMediaState } from "./base/settings";
 import isSquirrel from "electron-squirrel-startup";
 import { selectedShow } from "./base/selectedShow";
-import { tryCreateVMixConnection } from "./vmix/vmix";
 import Icon from "../icon/png/64x64.png";
-import { tryCreateOntimeConnection } from "./ontime/ontime";
 import * as Sentry from "@sentry/electron/main";
 import { logFlagState } from "@bowser/feature-flags";
 import { getLogger } from "./base/logging";
+import { OBSIntegration } from "./obs/obs";
+import { VMixIntegration } from "./vmix/vmix";
+import { OntimeIntegration } from "./ontime/ontime";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (isSquirrel) {
@@ -51,11 +51,11 @@ const createWindow = async () => {
   await Promise.all([
     validateLocalMediaState(),
     tryCreateAPIClient(),
-    tryCreateOBSConnection(),
+    OBSIntegration.start(undefined, true),
     process.platform === "win32"
-      ? tryCreateVMixConnection()
+      ? VMixIntegration.start(undefined, true)
       : Promise.resolve(),
-    tryCreateOntimeConnection(),
+    OntimeIntegration.start(undefined, true),
   ]);
   logger.debug("Pre-flight complete, starting app");
 

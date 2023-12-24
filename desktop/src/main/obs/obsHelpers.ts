@@ -1,6 +1,6 @@
 import {
   castMediaSourceSettings,
-  obsConnection,
+  OBSIntegration,
   OBSVideoSettings,
   SceneItem,
 } from "./obs";
@@ -54,7 +54,6 @@ export async function addOrReplaceMediaAsScene(
     info.continuityItems.length > 0,
     "No continuity item for media in addMediaAsScene",
   );
-  invariant(obsConnection, "no OBS connection");
   const localMedia = await getLocalMediaSettings();
   const item = localMedia.find((x) => x.mediaID === info.id);
   invariant(
@@ -62,7 +61,7 @@ export async function addOrReplaceMediaAsScene(
     `No local media for media ${info.id} [${info.name}] in addMediaAsScene`,
   );
 
-  const videoSettings = await obsConnection.getVideoSettings();
+  const videoSettings = await OBSIntegration.instance.getVideoSettings();
 
   const mediaSourceName = MEDIA_SOURCE_PREFIX + info.id.toString(10);
   const currentContinuityItem = info.continuityItems.find(
@@ -85,19 +84,19 @@ export async function addOrReplaceMediaAsScene(
     );
   }
 
-  const scenes = await obsConnection.listScenes();
+  const scenes = await OBSIntegration.instance.listScenes();
   const ours = scenes.find((x) => x.sceneName === sceneTitle);
   if (!ours) {
     // The scene doesn't exist, create it from scratch.
     logger.debug("addMediaAsScene: creating scene", sceneTitle);
-    await obsConnection.createScene(sceneTitle);
+    await OBSIntegration.instance.createScene(sceneTitle);
     await _doAddMediaToScene(sceneTitle, mediaSourceName, item, videoSettings);
     return { warnings, done: true };
   }
 
   // The scene exists. Check if it has the source we want, and if not, add it.
   logger.debug("addMediaAsScene: found scene", ours);
-  const items = await obsConnection.getSceneItems(sceneTitle);
+  const items = await OBSIntegration.instance.getSceneItems(sceneTitle);
   // If the scene is empty, we can go ahead and add our source
   if (items.length === 0) {
     logger.debug(
@@ -111,12 +110,16 @@ export async function addOrReplaceMediaAsScene(
   if (items.length === 1 && items[0].sourceName === mediaSourceName) {
     // The scene exists, and it has a source that matches our naming convention. Check if it's the same file.
     logger.debug("addMediaAsScene: found existing source");
-    const settings = await obsConnection.getSourceSettings(mediaSourceName);
+    const settings =
+      await OBSIntegration.instance.getSourceSettings(mediaSourceName);
     if (!castMediaSourceSettings(settings)) {
       // Should never happen unless the user manually creates a different source, or there's a Bowser version incompatibility.
       if (replaceMode === "force") {
         warn("Existing source is not a media source. Forcing replacement.");
-        await obsConnection.removeSceneItem(sceneTitle, items[0].sceneItemId);
+        await OBSIntegration.instance.removeSceneItem(
+          sceneTitle,
+          items[0].sceneItemId,
+        );
         await _doAddMediaToScene(
           sceneTitle,
           mediaSourceName,
@@ -144,7 +147,7 @@ export async function addOrReplaceMediaAsScene(
       warn(
         `Media source ${mediaSourceName} in scene ${sceneTitle} has a different path (${settings.inputSettings.local_file}) than expected (${item.path}). Forcing replacement.`,
       );
-      await obsConnection.replaceMediaSourceInScene(
+      await OBSIntegration.instance.replaceMediaSourceInScene(
         sceneTitle,
         mediaSourceName,
         item.path,
@@ -170,7 +173,10 @@ export async function addOrReplaceMediaAsScene(
       logger.debug(
         "addMediaAsScene: existing scene has one Bowser source with mismatching ID. Replacing.",
       );
-      await obsConnection.removeSceneItem(sceneTitle, items[0].sceneItemId);
+      await OBSIntegration.instance.removeSceneItem(
+        sceneTitle,
+        items[0].sceneItemId,
+      );
       await _doAddMediaToScene(
         sceneTitle,
         mediaSourceName,
@@ -197,11 +203,14 @@ export async function addOrReplaceMediaAsScene(
       if (item.sourceName == mediaSourceName) {
         oursPresent = true;
       } else {
-        await obsConnection.removeSceneItem(sceneTitle, item.sceneItemId);
+        await OBSIntegration.instance.removeSceneItem(
+          sceneTitle,
+          item.sceneItemId,
+        );
       }
     }
     if (oursPresent) {
-      await obsConnection.replaceMediaSourceInScene(
+      await OBSIntegration.instance.replaceMediaSourceInScene(
         sceneTitle,
         mediaSourceName,
         item.path,
@@ -230,13 +239,12 @@ async function _doAddMediaToScene(
   localMedia: LocalMediaType,
   videoSettings: OBSVideoSettings,
 ) {
-  invariant(obsConnection, "no OBS connection");
-  const id = await obsConnection.createMediaSourceInput(
+  const id = await OBSIntegration.instance.createMediaSourceInput(
     sceneTitle,
     mediaSourceName,
     localMedia.path,
   );
-  await obsConnection.setSceneItemTransform(sceneTitle, id, {
+  await OBSIntegration.instance.setSceneItemTransform(sceneTitle, id, {
     boundsWidth: videoSettings.baseWidth,
     boundsHeight: videoSettings.baseHeight,
     boundsType: "OBS_BOUNDS_SCALE_INNER",
@@ -252,13 +260,14 @@ export async function findContinuityScenes(): Promise<
     })[];
   }>
 > {
-  invariant(obsConnection, "no OBS connection");
-  const scenes = await obsConnection.listScenes();
+  const scenes = await OBSIntegration.instance.listScenes();
   const continuityScenes = scenes.filter((x) =>
     CONTINUITY_SCENE_NAME_REGEXP.test(x.sceneName),
   );
   const sceneItems = await Promise.all(
-    continuityScenes.map((x) => obsConnection!.getSceneItems(x.sceneName)),
+    continuityScenes.map((x) =>
+      OBSIntegration.instance.getSceneItems(x.sceneName),
+    ),
   );
   return continuityScenes.map((x, i) => {
     const sources = sceneItems[i].map((item) => {

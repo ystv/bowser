@@ -7,7 +7,7 @@ import { z } from "zod";
 import { callProcedure, TRPCError } from "@trpc/server";
 import { selectedShow, setSelectedShow } from "./base/selectedShow";
 import { CompleteShowModel } from "@bowser/prisma/utilityTypes";
-import { Integration } from "../common/types";
+import { Integration, IntegrationState } from "../common/types";
 import {
   assetsSettingsSchema,
   devToolsConfigSchema,
@@ -27,7 +27,7 @@ import { mediaRouter } from "./media/ipc";
 import { proc, r } from "./base/ipcRouter";
 import {
   DEV_overrideSupportedIntegrations,
-  supportedIntegrations,
+  getIntegrationStates,
 } from "./base/integrations";
 
 const logger = logging.getLogger("ipcApi");
@@ -66,9 +66,6 @@ export const appRouter = r({
     return await serverAPI().shows.listUpcoming.query();
   }),
   getSelectedShow: proc.output(CompleteShowModel.nullable()).query(() => {
-    logger.debug(
-      `getSelectedShow called, current value is ${inspect(selectedShow.value)}`,
-    );
     return selectedShow.value;
   }),
   setSelectedShow: proc
@@ -79,8 +76,10 @@ export const appRouter = r({
       await setSelectedShow(data);
       return data;
     }),
-  supportedIntegrations: proc.output(z.array(Integration)).query(() => {
-    return supportedIntegrations;
+  integrations: r({
+    status: proc.output(z.record(Integration, IntegrationState)).query(() => {
+      return getIntegrationStates();
+    }),
   }),
   getLogLevel: proc
     .output(z.enum(["trace", "debug", "info", "warn", "error"]))

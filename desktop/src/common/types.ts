@@ -16,3 +16,11 @@ export type CompleteShowType = z.infer<typeof CompleteShowModel>;
 
 export const Integration = z.enum(["vmix", "obs", "ontime"]);
 export type Integration = z.infer<typeof Integration>;
+
+export const IntegrationState = z.enum([
+  "unsupported",
+  "disabled",
+  "enabled",
+  "active",
+]);
+export type IntegrationState = z.infer<typeof IntegrationState>;

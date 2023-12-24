@@ -1,7 +1,8 @@
 import got, { type Got } from "got";
 import invariant from "../../common/invariant";
-import { getOntimeSettings } from "../base/settings";
+import { getOntimeSettings, saveOntimeSettings } from "../base/settings";
 import { getLogger } from "../base/logging";
+import { IntegrationManager } from "../base/integrations";
 
 const logger = getLogger("ontime");
 
@@ -109,34 +110,15 @@ export class OntimeClient {
   public async deleteAllEvents(): Promise<void> {
     await this.got.delete(`events/all`);
   }
+
+  public async close() {} // no-op
 }
 
-let ontimeInstance: OntimeClient | null;
-export function isOntimeConnected() {
-  return !!ontimeInstance;
-}
-export function getOntimeInstance() {
-  invariant(ontimeInstance, "Ontime not connected");
-  return ontimeInstance;
-}
-
-export async function createOntimeConnection(host: string) {
-  ontimeInstance = await OntimeClient.connect(host);
-}
-
-export async function tryCreateOntimeConnection() {
-  const settings = await getOntimeSettings();
-  if (!settings) {
-    return;
-  }
-  try {
-    await createOntimeConnection(settings.host);
-    logger.info("Successfully connected to Ontime");
-  } catch (e) {
-    logger.warn(
-      "Could not connect to Ontime: " +
-        (e instanceof Error ? e.message : String(e)),
-      e,
-    );
-  }
-}
+export const OntimeIntegration = new IntegrationManager(
+  "ontime",
+  async (settings) => {
+    return OntimeClient.connect(settings.host);
+  },
+  getOntimeSettings,
+  saveOntimeSettings,
+);

@@ -2,9 +2,11 @@ import OBSWebSocket, {
   OBSRequestTypes,
   OBSResponseTypes,
 } from "obs-websocket-js";
-import { getOBSSettings, saveOBSSettings } from "../base/settings";
+import { OBSSettings, getOBSSettings, saveOBSSettings } from "../base/settings";
 import { getLogger } from "../base/logging";
 import { inspect } from "node:util";
+import { IntegrationManager } from "../base/integrations";
+import { MockOBSConnection } from "./obs.mock";
 
 const logger = getLogger("obs");
 
@@ -166,7 +168,7 @@ export default class OBSConnection {
     const obsConnection = new OBSConnection();
     const obs = new OBSWebSocket();
     obs.on("ConnectionError", (err) => {
-      obsConnection.logger.error("OBS error:", err);
+      obsConnection.logger.error("OBS error: " + String(err));
     });
     obsConnection.logger.info(
       "Connecting to OBS at",
@@ -272,6 +274,10 @@ export default class OBSConnection {
     return await this._call(req, requestData);
   }
 
+  public async close() {
+    await this.obs.disconnect();
+  }
+
   private async _call<K extends keyof OBSRequestTypes>(
     req: K,
     requestData?: OBSRequestTypes[K],
@@ -283,34 +289,28 @@ export default class OBSConnection {
   }
 }
 
-export let obsConnection: OBSConnection | null = null;
-export async function createOBSConnection(
-  obsHost: string,
-  obsPassword: string,
-  obsPort = 4455,
-) {
-  obsConnection = await OBSConnection.create(obsHost, obsPassword, obsPort);
-  await obsConnection.ping();
-  await saveOBSSettings({
-    host: obsHost,
-    password: obsPassword,
-    port: obsPort,
-  });
-  return obsConnection;
-}
-
-export async function tryCreateOBSConnection() {
-  const settings = await getOBSSettings();
-  if (settings !== null) {
-    try {
-      obsConnection = await OBSConnection.create(
-        settings.host,
-        settings.password,
-        settings.port,
-      );
-      logger.info("Successfully connected to OBS using saved credentials");
-    } catch (e) {
-      logger.warn("Failed to connect to OBS (will ignore)", e);
+export const OBSIntegration = new IntegrationManager<
+  OBSConnection,
+  OBSSettings
+>(
+  "obs",
+  async (settings, notifyClosed) => {
+    if (process.env.__USE_MOCK_OBS) {
+      logger.warn("Using mock OBS connection");
+      return new MockOBSConnection() as unknown as OBSConnection;
     }
-  }
-}
+    const conn = await OBSConnection.create(
+      settings.host,
+      settings.password,
+      settings.port,
+    );
+    await conn.ping();
+    // FIXME
+    conn["obs"].on("ConnectionClosed", (reason) => {
+      notifyClosed(reason);
+    });
+    return conn;
+  },
+  getOBSSettings,
+  saveOBSSettings,
+);

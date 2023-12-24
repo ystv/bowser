@@ -21,8 +21,7 @@ import { getLogger } from "../base/logging";
 import { isAfter } from "date-fns";
 import invariant from "../../common/invariant";
 import { getAvailableDownloaders } from "./downloadFile";
-import { getVMixConnection } from "../vmix/vmix";
-import { obsConnection } from "../obs/obs";
+import { enabledIntegrations } from "../base/integrations";
 
 const logger = getLogger("media/ipc");
 
@@ -141,8 +140,7 @@ export const mediaRouter = r({
     const show = selectedShow.value;
     invariant(show, "No show selected");
     const state = await getLocalMediaSettings();
-    // TODO[BOW-136]: Rather than checking for the connection, split out supportedIntegrations and enabledIntegrations and check the latter
-    if (getVMixConnection() !== null) {
+    if (enabledIntegrations.has("vmix")) {
       for (const rundown of show.rundowns) {
         for (const item of rundown.items) {
           if (
@@ -162,8 +160,7 @@ export const mediaRouter = r({
         }
       }
     }
-    // TODO[BOW-136]: Rather than checking for the connection, split out supportedIntegrations and enabledIntegrations and check the latter
-    if (obsConnection !== null) {
+    if (enabledIntegrations.has("obs")) {
       for (const item of show.continuityItems) {
         if (
           item.media?.state === "Ready" &&

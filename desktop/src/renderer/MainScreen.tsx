@@ -90,7 +90,7 @@ function DownloadTrackerPopup() {
 export default function MainScreen() {
   const { data: show } = ipc.getSelectedShow.useQuery();
   invariant(show, "no selected show"); // this is safe because MainScreen is rendered inside a ConnectAndSelectShowGate
-  const [integrations] = ipc.supportedIntegrations.useSuspenseQuery();
+  const [integrations] = ipc.integrations.status.useSuspenseQuery();
 
   const downloadAll = ipc.media.downloadAllMediaForSelectedShow.useMutation();
 
@@ -98,7 +98,9 @@ export default function MainScreen() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const [selectedRundown, setSelectedRundown] = useState<"continuity" | number>(
-    integrations.includes("obs") ? "continuity" : show.rundowns[0].id,
+    integrations.obs === "enabled" || show.rundowns.length === 0
+      ? "continuity"
+      : show.rundowns[0].id,
   );
   const selectedName =
     selectedRundown === "continuity"
@@ -167,7 +169,7 @@ export default function MainScreen() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            {integrations.includes("obs") ? (
+            {integrations.obs === "active" ? (
               <DropdownMenuItem
                 onClick={() => setSelectedRundown("continuity")}
               >
@@ -176,7 +178,7 @@ export default function MainScreen() {
             ) : (
               <DropdownMenuItem disabled>OBS not available</DropdownMenuItem>
             )}
-            {integrations.includes("vmix") ? (
+            {integrations.vmix === "active" ? (
               show.rundowns
                 .sort((a, b) => a.order - b.order)
                 .map((rd) => (

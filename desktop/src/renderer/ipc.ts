@@ -91,6 +91,13 @@ window.console.error = (...args: unknown[]) => {
   ipcProxy.log.mutate({ level: "error", message: args.join(" ") });
 };
 
+window.onerror = (message, source, lineno, colno, error) => {
+  ipcProxy.log.mutate({
+    level: "error",
+    message: `Uncaught exception: ${message} ${source} ${lineno} ${colno} ${error}`,
+  });
+};
+
 // eslint-disable-next-line no-console
 console.info("Renderer IPC logging initialised.");
 

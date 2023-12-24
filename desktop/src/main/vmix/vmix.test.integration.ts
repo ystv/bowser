@@ -1,6 +1,16 @@
-import { beforeAll, expect, test } from "vitest";
+import { beforeAll, expect, test, vi } from "vitest";
 import VMixConnection from "./vmix";
 import { integrate } from "@bowser/testing";
+
+vi.mock("../base/settings", () => ({
+  getVMixSettings: () =>
+    Promise.resolve({
+      host: "localhost",
+      port: 8099,
+    }),
+  saveVMixSettings: () => {},
+}));
+vi.mock("../ipcEventBus");
 
 integrate("VMixConnection integration", () => {
   let vmix: VMixConnection;

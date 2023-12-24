@@ -6,6 +6,7 @@ import { AssetTypeSchema } from "@bowser/prisma/types";
 import { IPCEvents } from "../ipcEventBus";
 import { ipcMain } from "electron";
 import logging from "./logging";
+import { Integration } from "../../common/types";
 
 const logger = logging.getLogger("settings");
 
@@ -75,10 +76,9 @@ const OBSSettingsSchema = z.object({
   port: z.number(),
   password: z.string(),
 });
+export type OBSSettings = z.infer<typeof OBSSettingsSchema>;
 
-export async function getOBSSettings(): Promise<z.infer<
-  typeof OBSSettingsSchema
-> | null> {
+export async function getOBSSettings(): Promise<OBSSettings | null> {
   const settingsDataRaw = await settings.get("obs");
   if (settingsDataRaw === undefined) {
     return null;
@@ -90,9 +90,7 @@ export async function getOBSSettings(): Promise<z.infer<
   return settingsData;
 }
 
-export async function saveOBSSettings(
-  valIn: z.infer<typeof OBSSettingsSchema>,
-): Promise<void> {
+export async function saveOBSSettings(valIn: OBSSettings): Promise<void> {
   const val = { ...valIn };
   val.password = safeStorage.encryptString(val.password).toString("base64");
   await settings.set("obs", val);
@@ -101,6 +99,24 @@ export async function saveOBSSettings(
 const MediaSettingsSchema = z.object({
   mediaPath: z.string(),
 });
+
+export const VMixSettingsSchema = z.object({
+  host: z.string(),
+  port: z.number(),
+});
+export type VMixSettings = z.infer<typeof VMixSettingsSchema>;
+
+export async function getVMixSettings(): Promise<VMixSettings | null> {
+  const settingsDataRaw = await settings.get("vmix");
+  if (settingsDataRaw === undefined) {
+    return null;
+  }
+  return VMixSettingsSchema.parse(settingsDataRaw);
+}
+
+export async function saveVMixSettings(val: VMixSettings): Promise<void> {
+  await settings.set("vmix", val);
+}
 
 export async function getMediaSettings(): Promise<z.infer<
   typeof MediaSettingsSchema
